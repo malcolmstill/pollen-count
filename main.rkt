@@ -4,7 +4,8 @@
 	 racket/list
 	 racket/string
 	 racket/match
-	 racket/function)
+	 racket/function
+	 (for-syntax racket/syntax))
 
 (provide Alpha
 	 alpha
