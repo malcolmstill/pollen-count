@@ -91,7 +91,8 @@ Let's go!◊sup{◊hyperref{foot:c3po}}
 
 ◊footnote[#:label "foot:c3po"]{No, Threepio's with them. Just hang on.
 We're almost there. Mmmm. Oh, my. Uh, I, uh - Take this off! I, uh, don't
-mean to intrude here. I, don't, no, no, no...Please don't get up. No! Stormtroopers? Here? We're in danger. I must tell the others. Oh, no!
+mean to intrude here. I, don't, no, no, no...Please don't get up. No!
+Stormtroopers? Here? We're in danger. I must tell the others. Oh, no!
 I've been shot!}
 
 ```
