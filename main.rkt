@@ -8,11 +8,9 @@
 
 (provide Alpha
 	 alpha
-	 make-counter
-	 enumerate
-	 cross-reference
-	 number-and-xref
-	 gather-labels)
+	 define-countable-tag
+	 reset-counter
+	 cross-reference)
 
 (define (Alpha i)
   (string (integer->char (+ 64 i))))
@@ -35,61 +33,48 @@
 		      (string-append (parent 'to-string) separator (render count))
 		      (render count))])))
 
-(define (enumerate tag-counters doc)
-  (define-values (n _)
-    (splitf-txexpr doc
-		   (λ (x)
-		     (and (txexpr? x)
-			  (member (car x) (hash-keys tag-counters))))
-		   (λ (x)
-		     (let [(counter (hash-ref tag-counters (car x)))]
-		       (counter 'increment)
-		       (attr-set x 'data-number (counter 'to-string))))))
-  n)
+(define-syntax (reset-counter stx)
+  (syntax-case stx ()
+    [(_ tagname)
+     (with-syntax ([tag-counter (format-id stx "~a-counter" #'tagname)])
+       #'(tag-counter 'reset))]))
 
-(define (gather-labels doc)
-  (define label-map (make-hash))
-  (define-values (doc-labeled all-labeled)
-    (splitf-txexpr doc
-		   (λ (x)
-		     (and (txexpr? x)
-			  (ormap (λ (y)
-				   (if (txexpr? y)
-				       (equal? (car y) 'label)
-				       #f)) 
-				 (get-elements x))))
-		   (λ (x)
-		     (filter (λ (el)
-			       (not (and (list? el)
-					 (equal? (car el) 'label))))
-			     (attr-set x 'id (cadr (last (filter (λ (x)
-								   (and (list? x) (equal? (car x) 'label)))
-								 x))))))))
-  (values doc-labeled
-	  (make-immutable-hash (map (λ (labeled)
-				      (cons 
-				       (cadr (last (filter (λ (x)
-							     (and (list? x) (equal? (car x) 'label)))
-							   labeled)))
-				       labeled)) all-labeled))))
+(define label-map (hash))
+(define (clear-labelling)
+  (set! label-map (hash)))
+(define (update-label-map label number)
+  (set! label-map (hash-set label-map label number)))
 
-(define (cross-reference doc label-map)
+(define-syntax (define-countable-tag stx)
+  (syntax-case stx ()
+    [(_ (tagname a ... . rest) (initial render parent-tagname separator) (count) proc ...)
+     (with-syntax ([tag-counter (format-id stx "~a-counter" #'tagname)]
+                   [parent-counter (if (symbol? (syntax->datum #'parent-tagname))
+                                       (format-id stx "~a-counter" #'parent-tagname)
+                                       #'parent-tagname)])
+       #'(begin
+           (define tag-counter (make-counter initial render parent-counter separator))
+           (define (tagname #:label [label #f] a ... . rest)
+             (tag-counter 'increment)
+             (define count (tag-counter 'to-string))
+             (if label
+                 (begin
+                   (update-label-map label count)
+                   (attr-set proc ... 'id label))
+                 proc ...))))]))
+
+(define (cross-reference doc)
   (define-values (d _)
     (splitf-txexpr doc
-		   (λ (x)
-		     (and (txexpr? x)
+                   (λ (x)
+                     (and (txexpr? x)
 			  (member (car x) '(ref hyperref))))
-		   (λ (x)
+                   (λ (x)
 		     (match x
 		       [(list 'hyperref text ref) `(a ((href ,(string-append "#" ref)))
-						      ,text ,(attr-ref (hash-ref label-map ref) 'data-number))]
+						      ,text ,(hash-ref label-map ref))]
 		       [(list 'hyperref ref) `(a ((href ,(string-append "#" ref)))
-						 ,(attr-ref (hash-ref label-map ref) 'data-number))]
-		       [(list 'ref ref)  (attr-ref (hash-ref label-map ref) 'data-number)]))))
+						 ,(hash-ref label-map ref))]
+		       [(list 'ref ref) (hash-ref label-map ref)]))))
+  (clear-labelling)
   d)
-
-(define (number-and-xref tag-counters doc)
-  (define numbered (enumerate tag-counters doc))
-  (define-values (d label-map)
-    (gather-labels numbered))
-  (cross-reference d label-map))
