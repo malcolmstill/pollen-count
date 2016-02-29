@@ -3,7 +3,7 @@
                     racket/base]]
 
 @title{pollen-count}
-@author{klltkr}
+@author{Malcolm Still}
 
 @defmodule[pollen-count]
 
